@@ -1,0 +1,44 @@
+# Spectra archive: hash-chained batch ingest API with a one-shot verifier.
+#
+#   docker compose up --build api                 # run the API
+#   HOST_PORT=9000 docker compose up --build api  # run on a different host port
+#   docker compose up --build --exit-code-from verify   # full verification run
+#
+# Committed runs are stored on the named volume `run-data`, so they
+# survive container restarts and re-deployments.
+services:
+  api:
+    build: .
+    image: spectra-archive-api
+    ports:
+      - "${HOST_PORT:-8080}:8000"
+    environment:
+      PORT: "8000"
+      DATA_DIR: /data
+    volumes:
+      - run-data:/data
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import os,sys,urllib.request;sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:'+os.environ.get('PORT','8000')+'/health',timeout=2).status==200 else 1)"
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+    restart: unless-stopped
+
+  verify:
+    image: spectra-archive-api
+    build: .
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      API_BASE_URL: http://api:8000
+    command: ["python", "-m", "verify"]
+    restart: "no"
+
+volumes:
+  run-data:
