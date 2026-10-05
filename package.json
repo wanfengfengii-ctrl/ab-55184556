@@ -1,0 +1,15 @@
+{
+  "name": "ms-run-archive",
+  "version": "1.0.0",
+  "description": "Mass-spec NDJSON run archive with tamper-evident hash-chain verification",
+  "private": true,
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "license": "MIT"
+}

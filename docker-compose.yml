@@ -1,0 +1,50 @@
+# Mass-spec run archive stack.
+#
+# Configurable host port:
+#   HOST_PORT=9090 docker compose up --build
+# or put HOST_PORT / DATA_DIR in a .env file next to this compose file.
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ms-run-archive:latest
+    container_name: ms-run-archive-api
+    environment:
+      PORT: "8080"
+      HOST: "0.0.0.0"
+      DATA_DIR: /data
+    ports:
+      # ${HOST_PORT:-8080} maps a configurable host port to the container port.
+      - "${HOST_PORT:-8080}:8080"
+    volumes:
+      - run-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "scripts/healthcheck.js"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+
+  # One-shot verification: waits for API health, then runs syntax checks,
+  # the test suite and plaintext/gzip smoke tests. It exits with its own
+  # exit code (0 = all verified) and is never restarted.
+  verify:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ms-run-archive:latest
+    container_name: ms-run-archive_verify
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      API_BASE: http://api:8080
+      HEALTH_TIMEOUT_MS: "60000"
+      NODE_ENV: test
+    entrypoint: ["sh", "scripts/verify.sh"]
+    restart: "no"
+
+volumes:
+  run-data:
